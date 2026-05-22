@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Sarabun', sans-serif;
+    /* Prevent zoom on input focus (LINE in-app browser) */
+    touch-action: manipulation;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    /* Safe area for modern phones (notch / home bar) */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  /* ===== Card ===== */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-4;
+  }
+
+  /* ===== Button variants ===== */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+           font-medium text-sm transition-all duration-150 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 shadow-sm;
+  }
+  .btn-secondary {
+    @apply btn bg-gray-100 text-gray-700 hover:bg-gray-200;
+  }
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-600 shadow-sm;
+  }
+  .btn-success {
+    @apply btn bg-green-500 text-white hover:bg-green-600 shadow-sm;
+  }
+  .btn-outline {
+    @apply btn border border-primary-600 text-primary-600 hover:bg-primary-50;
+  }
+
+  /* ===== Form inputs ===== */
+  .input {
+    @apply w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white
+           text-sm focus:outline-none focus:ring-2 focus:ring-primary-500
+           focus:border-transparent placeholder-gray-400;
+  }
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  /* ===== Status badge ===== */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-pending  { @apply badge bg-yellow-100 text-yellow-800; }
+  .badge-verified { @apply badge bg-blue-100  text-blue-800;   }
+  .badge-approved { @apply badge bg-green-100 text-green-800;  }
+  .badge-rejected { @apply badge bg-red-100   text-red-800;    }
+  .badge-cancelled{ @apply badge bg-gray-100  text-gray-600;   }
+
+  /* ===== Page header ===== */
+  .page-title {
+    @apply text-xl font-semibold text-gray-900;
+  }
+  .page-subtitle {
+    @apply text-sm text-gray-500 mt-0.5;
+  }
+
+  /* ===== Bottom nav (mobile) ===== */
+  .bottom-nav-item {
+    @apply flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl
+           text-gray-500 transition-colors;
+  }
+  .bottom-nav-item.active {
+    @apply text-primary-600 font-medium;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full; }
