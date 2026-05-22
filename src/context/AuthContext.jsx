@@ -9,7 +9,7 @@
  */
 import { createContext, useContext, useState, useCallback } from 'react'
 import liff from '@line/liff'
-import { fetchUserProfile } from '../utils/api'
+import { fetchUserProfile, gasPost } from '../utils/api'
 
 const AuthContext = createContext(null)
 
@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
 
     // ── Dev Mode ──────────────────────────────────────────────────────────
     if (IS_DEV_MODE) {
-      await new Promise(r => setTimeout(r, 1000)) // จำลอง loading
+      await new Promise(r => setTimeout(r, 1000))
       setUser({
         uid:        'U_DEV_000000000000000000000000000',
         name:       `ทดสอบ ระบบ [${devRole}]`,
@@ -43,6 +43,7 @@ export function AuthProvider({ children }) {
         department: 'ฝ่ายพัฒนาระบบ',
         position:   'นักวิชาการคอมพิวเตอร์',
         role:       devRole,
+        userStatus: 'active',
         isActive:   true,
       })
       setStatus('ready')
@@ -63,13 +64,15 @@ export function AuthProvider({ children }) {
       const uid         = lineProfile.userId
       const profile     = await fetchUserProfile(uid)
 
+      // userStatus: 'new' | 'pending' | 'active' | 'rejected'
       setUser({
         uid,
-        name:       lineProfile.displayName,
+        name:       profile?.name       || lineProfile.displayName,
         pictureUrl: lineProfile.pictureUrl,
         department: profile?.department ?? '',
         position:   profile?.position   ?? '',
         role:       profile?.role       ?? 'User',
+        userStatus: profile?.userStatus ?? 'new',
         isActive:   profile?.isActive   ?? false,
       })
       setStatus('ready')
@@ -80,9 +83,9 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // ----- resumeSession: ตรวจสอบ LIFF token ที่ยังอยู่ (เรียกจาก LoginPage) ──
+  // ----- resumeSession ─────────────────────────────────────────────────────
   const resumeSession = useCallback(async () => {
-    if (IS_DEV_MODE) return false // ไม่มี session ใน dev mode
+    if (IS_DEV_MODE) return false
     try {
       await liff.init({ liffId: LIFF_ID })
       if (!liff.isLoggedIn()) return false
@@ -93,11 +96,12 @@ export function AuthProvider({ children }) {
 
       setUser({
         uid:        lineProfile.userId,
-        name:       lineProfile.displayName,
+        name:       profile?.name       || lineProfile.displayName,
         pictureUrl: lineProfile.pictureUrl,
         department: profile?.department ?? '',
         position:   profile?.position   ?? '',
         role:       profile?.role       ?? 'User',
+        userStatus: profile?.userStatus ?? 'new',
         isActive:   profile?.isActive   ?? false,
       })
       setStatus('ready')
@@ -107,6 +111,17 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // ----- registerUser: ส่งข้อมูลสมัครไปยัง GAS ───────────────────────────
+  const registerUser = useCallback(async ({ name, position, department }) => {
+    if (!user?.uid) throw new Error('No user session')
+    const result = await gasPost('registerUser', {
+      uid: user.uid, name, position, department,
+    })
+    // อัปเดต user state ให้ตรงกับข้อมูลที่กรอกไป
+    setUser(prev => ({ ...prev, name, position, department, userStatus: 'pending' }))
+    return result
+  }, [user])
+
   // ----- Logout ─────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     if (!IS_DEV_MODE && liff.isLoggedIn()) liff.logout()
@@ -114,15 +129,15 @@ export function AuthProvider({ children }) {
     setStatus('idle')
   }, [])
 
-  const isUser      = user?.role === 'User'
-  const isOfficer   = user?.role === 'Officer'
-  const isExecutive = user?.role === 'Executive'
+  const isUser       = user?.role === 'User'
+  const isOfficer    = user?.role === 'Officer'
+  const isExecutive  = user?.role === 'Executive'
   const isPrivileged = isOfficer || isExecutive
 
   const value = {
     user, status, error,
     isUser, isOfficer, isExecutive, isPrivileged,
-    startLogin, resumeSession, logout,
+    startLogin, resumeSession, registerUser, logout,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -81,6 +81,8 @@ function routeAction(action, params, payload) {
     // ── Common ──────────────────────────────────────────────────────
     case "getUserProfile":
       return getUserProfile(params.uid);
+    case "registerUser":
+      return registerUser(payload);
     case "getLeaveQuota":
       return getLeaveQuota(params.uid);
     case "getLeaveHistory":
@@ -121,51 +123,92 @@ function routeAction(action, params, payload) {
  * ดึงข้อมูลโปรไฟล์ผู้ใช้จาก Sheet "Users"
  * Columns: UID | Name | Position | Department | Role | Status | RegisteredAt
  */
+/**
+ * userStatus:
+ *   'new'     — UID ยังไม่มีในระบบ หรือยังไม่ได้กรอกชื่อ (ต้องสมัคร)
+ *   'pending' — รอการอนุมัติจากเจ้าหน้าที่
+ *   'active'  — อนุมัติแล้ว ใช้งานได้
+ *   'rejected'— ถูกปฏิเสธ
+ */
 function getUserProfile(uid) {
   if (!uid) return error("uid is required");
 
   const sheet = SS.getSheetByName("Users");
-  const rows = sheet.getDataRange().getValues();
+  const rows  = sheet.getDataRange().getValues();
 
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === uid) {
-      const row = rows[i];
-      const status = row[5]; // "Active" | "Pending" | "Rejected"
+    if (rows[i][0] !== uid) continue;
+
+    const row        = rows[i];
+    const sheetStatus = row[5]; // 'Active' | 'Pending' | 'Rejected'
+    const hasName    = row[1] && row[1].toString().trim() !== "";
+
+    // มี UID แต่ยังไม่กรอกข้อมูล → ให้สมัครก่อน
+    if (!hasName) {
       return success({
-        uid: row[0],
-        name: row[1],
-        position: row[2],
-        department: row[3],
-        role: row[4],
-        status: status, // ← เพิ่ม: 'Active' | 'Pending'
-        isActive: status === "Active",
-        registeredAt: row[6]
-          ? Utilities.formatDate(new Date(row[6]), "Asia/Bangkok", "yyyy-MM-dd")
-          : null,
+        uid,
+        name: "", position: "", department: "",
+        role: "User", userStatus: "new", isActive: false,
       });
     }
+
+    const userStatus = sheetStatus === "Active"   ? "active"
+                     : sheetStatus === "Rejected" ? "rejected"
+                     : "pending";
+
+    return success({
+      uid:          row[0],
+      name:         row[1],
+      position:     row[2],
+      department:   row[3],
+      role:         row[4],
+      userStatus,
+      isActive:     sheetStatus === "Active",
+      registeredAt: row[6]
+        ? Utilities.formatDate(new Date(row[6]), "Asia/Bangkok", "yyyy-MM-dd")
+        : null,
+      approvedAt:   row[7]
+        ? Utilities.formatDate(new Date(row[7]), "Asia/Bangkok", "yyyy-MM-dd")
+        : null,
+    });
   }
 
-  // ผู้ใช้ใหม่ — ยังไม่มีในระบบ → สร้างรายการ Pending อัตโนมัติ
+  // UID ไม่มีในระบบเลย → สร้างแถว Pending ว่างๆ และบอกว่า 'new'
   const now = new Date();
   sheet.appendRow([
-    uid,
-    "",
-    "",
-    "",
-    "User",
-    "Pending",
+    uid, "", "", "", "User", "Pending",
     Utilities.formatDate(now, "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss"),
+    "", "",
   ]);
   return success({
     uid,
-    name: "",
-    position: "",
-    department: "",
-    role: "User",
-    status: "Pending", // ← เพิ่ม
-    isActive: false,
+    name: "", position: "", department: "",
+    role: "User", userStatus: "new", isActive: false,
   });
+}
+
+/**
+ * บันทึกข้อมูลการสมัครของผู้ใช้ใหม่
+ * payload: { uid, name, position, department }
+ */
+function registerUser(payload) {
+  const { uid, name, position, department } = payload || {};
+  if (!uid || !name) return error("uid and name are required");
+
+  const sheet = SS.getSheetByName("Users");
+  const rows  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] !== uid) continue;
+    // อัปเดต Name, Position, Department (คอลัมน์ B, C, D)
+    sheet.getRange(i + 1, 2).setValue(name);
+    sheet.getRange(i + 1, 3).setValue(position || "");
+    sheet.getRange(i + 1, 4).setValue(department || "");
+    // Status ยังคง 'Pending' — รอเจ้าหน้าที่อนุมัติ
+    return success({ uid, name, position, department, userStatus: "pending" });
+  }
+
+  return error("User not found. Please call getUserProfile first.");
 }
 
 /**

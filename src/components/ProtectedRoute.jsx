@@ -46,55 +46,36 @@ function FullScreenError({ message, onRetry }) {
   )
 }
 
-function PendingApprovalScreen() {
-  const { logout } = useAuth()
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 bg-white text-center">
-      <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-500 text-3xl">
-        ⏳
-      </div>
-      <p className="font-semibold text-gray-800">บัญชีรอการอนุมัติ</p>
-      <p className="text-sm text-gray-500 max-w-xs">
-        บัญชีของคุณอยู่ระหว่างรอการตรวจสอบจากเจ้าหน้าที่
-        กรุณารอการอนุมัติก่อนเข้าใช้งานระบบ
-      </p>
-      <button className="btn-secondary" onClick={logout}>
-        ออกจากระบบ
-      </button>
-    </div>
-  )
-}
-
 function ForbiddenScreen() {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 bg-white text-center">
-      <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-500 text-3xl">
-        🚫
-      </div>
-      <p className="font-semibold text-gray-800">ไม่มีสิทธิ์เข้าถึง</p>
-      <p className="text-sm text-gray-500 max-w-xs">
-        คุณไม่มีสิทธิ์เข้าถึงหน้านี้
-      </p>
-      <Navigate to="/dashboard" replace />
-    </div>
-  )
+  return <Navigate to="/dashboard" replace />
 }
 
 // ---------------------------------------------------------------------------
 // ProtectedRoute
 // ---------------------------------------------------------------------------
-/**
- * @param {{ roles?: Array<'User'|'Officer'|'Executive'> }} props
- */
 export default function ProtectedRoute({ roles }) {
-  const { user, status, error } = useAuth()
+  const { user, status } = useAuth()
 
   // ยังไม่ได้ login → ไปหน้า login
   if (status === 'idle')    return <Navigate to="/login" replace />
   if (status === 'loading') return <FullScreenSpinner />
   if (status === 'error')   return <Navigate to="/login" replace />
   if (!user)                return <Navigate to="/login" replace />
-  if (!user.isActive)       return <PendingApprovalScreen />
+
+  // ยังไม่ได้กรอกข้อมูลสมัคร → บังคับสมัครก่อน
+  if (user.userStatus === 'new')     return <Navigate to="/register" replace />
+
+  // รอการอนุมัติ
+  if (user.userStatus === 'pending') return <Navigate to="/pending" replace />
+
+  // ถูกปฏิเสธ
+  if (user.userStatus === 'rejected') return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center" style={{ background: '#111' }}>
+      <p className="text-4xl">🚫</p>
+      <p className="text-white font-semibold">บัญชีถูกปฏิเสธ</p>
+      <p className="text-gray-400 text-sm">กรุณาติดต่อผู้ดูแลระบบ</p>
+    </div>
+  )
 
   if (roles && roles.length > 0 && !roles.includes(user.role)) {
     return <ForbiddenScreen />

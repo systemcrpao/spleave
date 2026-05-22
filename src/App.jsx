@@ -23,6 +23,8 @@ import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute   from './components/ProtectedRoute'
 import Layout           from './components/Layout'
 import LoginPage        from './pages/LoginPage'
+import RegisterPage     from './pages/RegisterPage'
+import PendingPage      from './pages/PendingPage'
 
 // Pages — common
 import Dashboard        from './pages/common/Dashboard'
@@ -46,8 +48,10 @@ export default function App() {
     <BrowserRouter basename={BASE}>
       <AuthProvider>
         <Routes>
-          {/* หน้า Login — แสดง splash + LINE login */}
-          <Route path="/login" element={<LoginPage />} />
+          {/* Public routes — ไม่ต้อง auth */}
+          <Route path="/login"    element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/pending"  element={<PendingPage />} />
 
           {/* หน้า default → redirect ไป login ก่อน */}
           <Route path="/" element={<Navigate to="/login" replace />} />
