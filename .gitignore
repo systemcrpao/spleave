@@ -3,3 +3,6 @@ node_modules/
 dist/
 .DS_Store
 *.log
+
+# Google Apps Script — เก็บไว้ใน local เท่านั้น
+gas/
