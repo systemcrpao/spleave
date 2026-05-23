@@ -134,40 +134,47 @@ function getUserProfile(uid) {
   if (!uid) return error("uid is required");
 
   const sheet = SS.getSheetByName("Users");
-  const rows  = sheet.getDataRange().getValues();
+  const rows = sheet.getDataRange().getValues();
 
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] !== uid) continue;
 
-    const row        = rows[i];
+    const row = rows[i];
     const sheetStatus = row[5]; // 'Active' | 'Pending' | 'Rejected'
-    const hasName    = row[1] && row[1].toString().trim() !== "";
+    const hasName = row[1] && row[1].toString().trim() !== "";
 
     // มี UID แต่ยังไม่กรอกข้อมูล → ให้สมัครก่อน
     if (!hasName) {
       return success({
         uid,
-        name: "", position: "", department: "",
-        role: "User", userStatus: "new", isActive: false,
+        name: "",
+        position: "",
+        department: "",
+        role: "User",
+        userStatus: "new",
+        isActive: false,
       });
     }
 
-    const userStatus = sheetStatus === "Active"   ? "active"
-                     : sheetStatus === "Rejected" ? "rejected"
-                     : "pending";
+    const userStatus =
+      sheetStatus === "Active"
+        ? "active"
+        : sheetStatus === "Rejected"
+          ? "rejected"
+          : "pending";
 
     return success({
-      uid:          row[0],
-      name:         row[1],
-      position:     row[2],
-      department:   row[3],
-      role:         row[4],
+      uid: row[0],
+      name: row[1],
+      position: row[2],
+      department: row[3],
+      role: row[4],
       userStatus,
-      isActive:     sheetStatus === "Active",
+      isActive: sheetStatus === "Active",
       registeredAt: row[6]
         ? Utilities.formatDate(new Date(row[6]), "Asia/Bangkok", "yyyy-MM-dd")
         : null,
-      approvedAt:   row[7]
+      approvedAt: row[7]
         ? Utilities.formatDate(new Date(row[7]), "Asia/Bangkok", "yyyy-MM-dd")
         : null,
     });
@@ -176,14 +183,24 @@ function getUserProfile(uid) {
   // UID ไม่มีในระบบเลย → สร้างแถว Pending ว่างๆ และบอกว่า 'new'
   const now = new Date();
   sheet.appendRow([
-    uid, "", "", "", "User", "Pending",
+    uid,
+    "",
+    "",
+    "",
+    "User",
+    "Pending",
     Utilities.formatDate(now, "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss"),
-    "", "",
+    "",
+    "",
   ]);
   return success({
     uid,
-    name: "", position: "", department: "",
-    role: "User", userStatus: "new", isActive: false,
+    name: "",
+    position: "",
+    department: "",
+    role: "User",
+    userStatus: "new",
+    isActive: false,
   });
 }
 
@@ -196,7 +213,7 @@ function registerUser(payload) {
   if (!uid || !name) return error("uid and name are required");
 
   const sheet = SS.getSheetByName("Users");
-  const rows  = sheet.getDataRange().getValues();
+  const rows = sheet.getDataRange().getValues();
 
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] !== uid) continue;

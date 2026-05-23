@@ -1,41 +1,104 @@
 /**
  * AuthContext.jsx
  *
- * จัดการ LINE LIFF และ session ผู้ใช้ (uid, name, department, role)
- * Roles: 'User' | 'Officer' | 'Executive'
+ * Auth flow (Production):
+ *   App mount → liff.init() ทันที
+ *     ├─ liff.isLoggedIn() = true  → fetch profile → status='ready'
+ *     │   (กรณีกลับจาก LINE OAuth หรือ session ยังอยู่)
+ *     └─ liff.isLoggedIn() = false → status='idle' → แสดงปุ่ม Login
  *
- * DEV MODE: เมื่อไม่มี VITE_LIFF_ID จะแสดงหน้า Login แต่ให้เลือก Role
- * เพื่อเข้าระบบแบบจำลองแทน LIFF จริง
+ *   ผู้ใช้กดปุ่ม → startLogin() → liff.login() → redirect ไป LINE
+ *   กลับมา → app reload → useEffect auto-detect session อีกครั้ง
+ *
+ * Auth flow (Dev Mode — ไม่มี VITE_LIFF_ID):
+ *   status='idle' → แสดงตัวเลือก Role → กดปุ่ม → fake user
  */
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import liff from '@line/liff'
 import { fetchUserProfile, gasPost } from '../utils/api'
 
 const AuthContext = createContext(null)
 
-const LIFF_ID     = import.meta.env.VITE_LIFF_ID || ''
+const LIFF_ID          = import.meta.env.VITE_LIFF_ID || ''
 export const IS_DEV_MODE = !LIFF_ID
 
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 export function AuthProvider({ children }) {
-  /** @type {'idle'|'loading'|'ready'|'error'} */
-  const [status, setStatus] = useState('idle')
+  /**
+   * status:
+   *   'loading' — กำลังตรวจสอบ LIFF session (แสดง splash)
+   *   'idle'    — ไม่ได้ login → แสดงปุ่ม Login
+   *   'ready'   — login สำเร็จ → route ตาม userStatus
+   *   'error'   — เกิดข้อผิดพลาด
+   */
+  const [status, setStatus] = useState('loading')
   const [user,   setUser]   = useState(null)
   const [error,  setError]  = useState(null)
 
-  // ----- startLogin: เรียกจากหน้า LoginPage เมื่อผู้ใช้กดปุ่ม ─────────────
-  /**
-   * @param {string} [devRole] - ใช้เฉพาะ Dev Mode: 'User'|'Officer'|'Executive'
-   */
+  // ----- Auto-init LIFF เมื่อ app โหลด ────────────────────────────────────
+  useEffect(() => {
+    if (IS_DEV_MODE) {
+      // Dev mode: ไม่มี LIFF → แสดงหน้า login พร้อมตัวเลือก role
+      setStatus('idle')
+      return
+    }
+
+    let cancelled = false
+
+    const initAndCheck = async () => {
+      try {
+        // liff.init() ทำทุกอย่างอัตโนมัติ:
+        // - ถ้ากลับจาก LINE OAuth: ดึง token จาก URL, เก็บใน localStorage
+        // - ถ้ามี session เก่า: โหลดจาก localStorage
+        await liff.init({ liffId: LIFF_ID })
+
+        if (!liff.isLoggedIn()) {
+          // ยังไม่ได้ login → แสดงปุ่ม
+          if (!cancelled) setStatus('idle')
+          return
+        }
+
+        // ── Login สำเร็จ: ดึงข้อมูลจาก LINE + GAS ──────────────────────
+        const lineProfile = await liff.getProfile()
+        const profile     = await fetchUserProfile(lineProfile.userId)
+
+        if (!cancelled) {
+          setUser({
+            uid:        lineProfile.userId,
+            name:       profile?.name       || lineProfile.displayName,
+            pictureUrl: lineProfile.pictureUrl,
+            department: profile?.department ?? '',
+            position:   profile?.position   ?? '',
+            role:       profile?.role       ?? 'User',
+            userStatus: profile?.userStatus ?? 'new',
+            isActive:   profile?.isActive   ?? false,
+          })
+          setStatus('ready')
+        }
+      } catch (err) {
+        console.error('[AuthContext] liff.init failed:', err)
+        // ไม่แสดง error หน้าแดง → แค่แสดงปุ่ม login ใหม่
+        if (!cancelled) {
+          setError(err.message ?? 'เกิดข้อผิดพลาด')
+          setStatus('idle')
+        }
+      }
+    }
+
+    initAndCheck()
+    return () => { cancelled = true }
+  }, [])
+
+  // ----- startLogin: ผู้ใช้กดปุ่ม login ───────────────────────────────────
   const startLogin = useCallback(async (devRole = 'User') => {
-    setStatus('loading')
     setError(null)
 
-    // ── Dev Mode ──────────────────────────────────────────────────────────
+    // ── Dev Mode ────────────────────────────────────────────────────────
     if (IS_DEV_MODE) {
-      await new Promise(r => setTimeout(r, 1000))
+      setStatus('loading')
+      await new Promise(r => setTimeout(r, 600))
       setUser({
         uid:        'U_DEV_000000000000000000000000000',
         name:       `ทดสอบ ระบบ [${devRole}]`,
@@ -50,79 +113,23 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // ── Production: LIFF จริง ────────────────────────────────────────────
-    try {
-      await liff.init({ liffId: LIFF_ID })
-
-      if (!liff.isLoggedIn()) {
-        liff.login()
-        // หน้าจะถูก redirect โดย LIFF — ไม่ต้อง setStatus อะไรเพิ่ม
-        return
-      }
-
-      const lineProfile = await liff.getProfile()
-      const uid         = lineProfile.userId
-      const profile     = await fetchUserProfile(uid)
-
-      // userStatus: 'new' | 'pending' | 'active' | 'rejected'
-      setUser({
-        uid,
-        name:       profile?.name       || lineProfile.displayName,
-        pictureUrl: lineProfile.pictureUrl,
-        department: profile?.department ?? '',
-        position:   profile?.position   ?? '',
-        role:       profile?.role       ?? 'User',
-        userStatus: profile?.userStatus ?? 'new',
-        isActive:   profile?.isActive   ?? false,
-      })
-      setStatus('ready')
-    } catch (err) {
-      console.error('[AuthContext] LIFF init failed:', err)
-      setError(err.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
-      setStatus('error')
+    // ── Production: ถ้ายังไม่ได้ login → redirect ไป LINE ───────────────
+    // liff.init() ถูกเรียกไปแล้วใน useEffect
+    // ถ้า isLoggedIn() = false → เรียก liff.login() ได้เลย
+    if (!liff.isLoggedIn()) {
+      liff.login() // redirect ไป LINE → กลับมาที่ endpoint URL
     }
+    // ถ้า isLoggedIn() = true แล้ว → status จะเป็น 'ready' จาก useEffect แล้ว
   }, [])
 
-  // ----- resumeSession ─────────────────────────────────────────────────────
-  const resumeSession = useCallback(async () => {
-    if (IS_DEV_MODE) return false
-    try {
-      await liff.init({ liffId: LIFF_ID })
-      if (!liff.isLoggedIn()) return false
-
-      setStatus('loading')
-      const lineProfile = await liff.getProfile()
-      const profile     = await fetchUserProfile(lineProfile.userId)
-
-      setUser({
-        uid:        lineProfile.userId,
-        name:       profile?.name       || lineProfile.displayName,
-        pictureUrl: lineProfile.pictureUrl,
-        department: profile?.department ?? '',
-        position:   profile?.position   ?? '',
-        role:       profile?.role       ?? 'User',
-        userStatus: profile?.userStatus ?? 'new',
-        isActive:   profile?.isActive   ?? false,
-      })
-      setStatus('ready')
-      return true
-    } catch {
-      return false
-    }
-  }, [])
-
-  // ----- registerUser: ส่งข้อมูลสมัครไปยัง GAS ───────────────────────────
+  // ----- registerUser: ส่งข้อมูลสมัครไปยัง GAS ──────────────────────────
   const registerUser = useCallback(async ({ name, position, department }) => {
     if (!user?.uid) throw new Error('No user session')
-    const result = await gasPost('registerUser', {
-      uid: user.uid, name, position, department,
-    })
-    // อัปเดต user state ให้ตรงกับข้อมูลที่กรอกไป
+    await gasPost('registerUser', { uid: user.uid, name, position, department })
     setUser(prev => ({ ...prev, name, position, department, userStatus: 'pending' }))
-    return result
   }, [user])
 
-  // ----- Logout ─────────────────────────────────────────────────────────────
+  // ----- Logout ────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     if (!IS_DEV_MODE && liff.isLoggedIn()) liff.logout()
     setUser(null)
@@ -134,13 +141,15 @@ export function AuthProvider({ children }) {
   const isExecutive  = user?.role === 'Executive'
   const isPrivileged = isOfficer || isExecutive
 
-  const value = {
-    user, status, error,
-    isUser, isOfficer, isExecutive, isPrivileged,
-    startLogin, resumeSession, registerUser, logout,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{
+      user, status, error,
+      isUser, isOfficer, isExecutive, isPrivileged,
+      startLogin, registerUser, logout,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 // ---------------------------------------------------------------------------
