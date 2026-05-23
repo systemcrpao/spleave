@@ -47,10 +47,8 @@ export async function gasGet(action, params = {}) {
   url.searchParams.set('action', action)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)))
 
-  const res = await fetch(url.toString(), {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  })
+  // GET without custom headers = simple CORS request (no preflight needed)
+  const res = await fetch(url.toString())
   return parseResponse(res)
 }
 
@@ -64,12 +62,11 @@ export async function gasPost(action, payload = {}) {
   const url = new URL(GAS_URL)
   url.searchParams.set('action', action)
 
+  // Encode as URL-encoded string to avoid CORS preflight
+  // (Content-Type: application/json triggers preflight; GAS handles text/plain safely)
   const res = await fetch(url.toString(), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload),
   })
   return parseResponse(res)

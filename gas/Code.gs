@@ -31,27 +31,19 @@ const SS = SpreadsheetApp.openById(SPREADSHEET_ID);
 /** ปีงบประมาณปัจจุบัน (พ.ศ.) */
 const CURRENT_FISCAL_YEAR = 2569;
 
-// ─── CORS Headers ──────────────────────────────────────────────────────────
-function setCorsHeaders(output) {
-  return output
-    .setHeader("Access-Control-Allow-Origin", "*")
-    .setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    .setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
-
 // ─── Response Helpers ──────────────────────────────────────────────────────
+// หมายเหตุ: GAS จัดการ CORS ให้อัตโนมัติโดย Google infrastructure
+// ไม่ต้อง setHeader() เอง (ContentService ไม่มี method นี้)
 function success(data) {
-  const output = ContentService.createTextOutput(
+  return ContentService.createTextOutput(
     JSON.stringify({ status: "success", data }),
   ).setMimeType(ContentService.MimeType.JSON);
-  return setCorsHeaders(output);
 }
 
 function error(message) {
-  const output = ContentService.createTextOutput(
+  return ContentService.createTextOutput(
     JSON.stringify({ status: "error", message }),
   ).setMimeType(ContentService.MimeType.JSON);
-  return setCorsHeaders(output);
 }
 
 // ─── Entry Points ──────────────────────────────────────────────────────────

@@ -40,22 +40,20 @@ export function AuthProvider({ children }) {
   // ----- Auto-init LIFF เมื่อ app โหลด ────────────────────────────────────
   useEffect(() => {
     if (IS_DEV_MODE) {
-      // Dev mode: ไม่มี LIFF → แสดงหน้า login พร้อมตัวเลือก role
       setStatus('idle')
       return
     }
 
     let cancelled = false
 
-    const initAndCheck = async () => {
+    const checkSession = async () => {
       try {
-        // liff.init() ทำทุกอย่างอัตโนมัติ:
-        // - ถ้ากลับจาก LINE OAuth: ดึง token จาก URL, เก็บใน localStorage
-        // - ถ้ามี session เก่า: โหลดจาก localStorage
-        await liff.init({ liffId: LIFF_ID })
-
+        /**
+         * liff.init() ถูกเรียกแล้วใน main.jsx ก่อน React render
+         * ดังนั้นตรงนี้เพียงแค่ตรวจว่า isLoggedIn() หรือเปล่า
+         * ไม่ต้อง init ซ้ำ (การ init ซ้ำจะ throw error)
+         */
         if (!liff.isLoggedIn()) {
-          // ยังไม่ได้ login → แสดงปุ่ม
           if (!cancelled) setStatus('idle')
           return
         }
@@ -87,7 +85,7 @@ export function AuthProvider({ children }) {
       }
     }
 
-    initAndCheck()
+    checkSession()
     return () => { cancelled = true }
   }, [])
 
@@ -113,13 +111,9 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // ── Production: ถ้ายังไม่ได้ login → redirect ไป LINE ───────────────
-    // liff.init() ถูกเรียกไปแล้วใน useEffect
-    // ถ้า isLoggedIn() = false → เรียก liff.login() ได้เลย
-    if (!liff.isLoggedIn()) {
-      liff.login() // redirect ไป LINE → กลับมาที่ endpoint URL
-    }
-    // ถ้า isLoggedIn() = true แล้ว → status จะเป็น 'ready' จาก useEffect แล้ว
+    // ── Production: liff.init() เสร็จแล้วใน main.jsx ──────────────────
+    // เรียก liff.login() ได้เลย → redirect ไป LINE
+    liff.login()
   }, [])
 
   // ----- registerUser: ส่งข้อมูลสมัครไปยัง GAS ──────────────────────────
