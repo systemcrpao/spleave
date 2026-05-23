@@ -60,30 +60,30 @@ export function Sidebar({ open, onClose }) {
       {/* Drawer */}
       <aside
         className={[
-          'fixed top-0 left-0 z-30 h-full w-72 bg-white shadow-xl flex flex-col',
+          'fixed top-0 left-0 z-30 h-full w-72 bg-gray-900 shadow-xl flex flex-col',
           'transition-transform duration-300 ease-in-out',
-          'md:translate-x-0 md:static md:shadow-none md:border-r md:border-gray-100',
+          'md:translate-x-0 md:static md:shadow-none md:border-r md:border-gray-800',
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-5 border-b border-gray-800">
           <div className="flex items-center gap-3">
             {user?.pictureUrl ? (
               <img src={user.pictureUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold">
+              <div className="w-10 h-10 rounded-full bg-primary-800 flex items-center justify-center text-primary-300 font-bold">
                 {user?.name?.[0] ?? '?'}
               </div>
             )}
             <div className="min-w-0">
-              <p className="font-semibold text-gray-900 text-sm truncate">{user?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.department}</p>
+              <p className="font-semibold text-white text-sm truncate">{user?.name}</p>
+              <p className="text-xs text-gray-400 truncate">{user?.department}</p>
               <span className="badge badge-pending mt-0.5">{roleLabel[user?.role] ?? user?.role}</span>
             </div>
           </div>
           {/* Close button (mobile) */}
-          <button onClick={onClose} className="md:hidden p-1 rounded-lg hover:bg-gray-100">
+          <button onClick={onClose} className="md:hidden p-1 rounded-lg hover:bg-gray-800 text-gray-400">
             <IconX />
           </button>
         </div>
@@ -96,10 +96,10 @@ export function Sidebar({ open, onClose }) {
         </nav>
 
         {/* Logout */}
-        <div className="px-3 pb-6 pt-2 border-t border-gray-100">
+        <div className="px-3 pb-6 pt-2 border-t border-gray-800">
           <button
             onClick={logout}
-            className="btn-secondary w-full gap-2 text-red-500 hover:bg-red-50"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-900/30 transition-colors"
           >
             <IconLogout />
             ออกจากระบบ
@@ -152,7 +152,7 @@ export function BottomNav() {
 function MenuSection({ label, items, onNav }) {
   return (
     <div>
-      <p className="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+      <p className="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
         {label}
       </p>
       {items.map(({ path, label: itemLabel, icon: Icon }) => (
@@ -164,8 +164,8 @@ function MenuSection({ label, items, onNav }) {
             [
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
               isActive
-                ? 'bg-primary-50 text-primary-700'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                ? 'bg-primary-600 text-white'
+                : 'text-gray-400 hover:bg-gray-800 hover:text-white',
             ].join(' ')
           }
         >

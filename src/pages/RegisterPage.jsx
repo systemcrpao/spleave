@@ -43,7 +43,9 @@ export default function RegisterPage() {
   const handleSubmit = async e => {
     e.preventDefault()
     if (!form.name.trim())       return setError('กรุณากรอกชื่อ-นามสกุล')
+    if (form.name.trim().length > 100) return setError('ชื่อยาวเกินไป')
     if (!form.position.trim())   return setError('กรุณากรอกตำแหน่ง')
+    if (form.position.trim().length > 100) return setError('ตำแหน่งยาวเกินไป')
     if (!form.department)        return setError('กรุณาเลือกฝ่าย/กอง')
 
     setLoading(true)
@@ -103,6 +105,7 @@ export default function RegisterPage() {
                 value={form.name}
                 onChange={handleChange}
                 placeholder="เช่น นายสมชาย ใจดี"
+                maxLength={100}
                 className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-gray-600 outline-none focus:ring-2"
                 style={{
                   background: '#2c2c2e',
@@ -121,6 +124,7 @@ export default function RegisterPage() {
                 value={form.position}
                 onChange={handleChange}
                 placeholder="เช่น นักวิชาการคอมพิวเตอร์ชำนาญการ"
+                maxLength={100}
                 className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-gray-600 outline-none focus:ring-2"
                 style={{ background: '#2c2c2e', border: '1px solid #3a3a3c', '--tw-ring-color': '#06C755' }}
               />

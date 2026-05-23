@@ -58,6 +58,11 @@ export default function LeaveRequestForm() {
       toast.error('กรุณาแนบใบรับรองแพทย์สำหรับการลาป่วย')
       return
     }
+    // ตรวจสอบขนาดไฟล์ (5 MB)
+    if (form.certFile && form.certFile.size > 5 * 1024 * 1024) {
+      toast.error('ไฟล์ใหญ่เกินไป ต้องไม่เกิน 5 MB')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -69,12 +74,10 @@ export default function LeaveRequestForm() {
 
       await submitLeaveRequest({
         uid:          user.uid,
-        name:         user.name,
-        department:   user.department,
         leaveType:    form.leaveType,
         startDate:    form.startDate,
         endDate:      form.endDate,
-        totalDays,
+        // totalDays คำนวณโดย GAS server-side
         reason:       form.reason.trim(),
         certBase64,
         certFileName: form.certFile?.name ?? null,
